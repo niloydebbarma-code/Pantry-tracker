@@ -18,14 +18,21 @@
         }
         .container {
             width: 80%;
-            max-width: 600px;
+            max-width: 800px;
             margin: 20px;
             padding: 20px;
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        input[type="text"] {
+        input[type="text"], input[type="date"] {
+            padding: 10px;
+            margin: 10px 0;
+            width: calc(100% - 22px);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        select {
             padding: 10px;
             margin: 10px 0;
             width: calc(100% - 22px);
@@ -56,13 +63,33 @@
             justify-content: space-between;
             align-items: center;
         }
+        .edit-btn {
+            margin-right: 10px;
+            padding: 5px;
+            border: none;
+            background-color: #ffc107;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .edit-btn:hover {
+            background-color: #e0a800;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Pantry Tracker</h1>
         <input type="text" id="itemInput" placeholder="Enter pantry item">
+        <select id="categorySelect">
+            <option value="">Select Category</option>
+            <option value="Dry Goods">Dry Goods</option>
+            <option value="Canned Goods">Canned Goods</option>
+            <option value="Frozen">Frozen</option>
+        </select>
+        <input type="date" id="expirationDate">
         <button onclick="addItem()">Add Item</button>
+        <input type="text" id="searchInput" placeholder="Search items">
         <ul id="itemList">
             <!-- Items will be populated here -->
         </ul>
@@ -75,25 +102,26 @@
             itemList.innerHTML = '';
             items.forEach(item => {
                 const li = document.createElement('li');
-                li.textContent = item;
-                const button = document.createElement('button');
-                button.textContent = 'Remove';
-                button.onclick = () => removeItem(item);
-                li.appendChild(button);
+                li.innerHTML = `${item.item} - ${item.category} - ${item.expiration_date} 
+                <button class="edit-btn" onclick="editItem('${item.item}')">Edit</button>
+                <button onclick="removeItem('${item.item}')">Remove</button>`;
                 itemList.appendChild(li);
             });
         }
 
         async function addItem() {
-            const input = document.getElementById('itemInput');
-            const item = input.value.trim();
+            const item = document.getElementById('itemInput').value.trim();
+            const category = document.getElementById('categorySelect').value;
+            const expirationDate = document.getElementById('expirationDate').value;
             if (item) {
                 await fetch('/add_item', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `item=${encodeURIComponent(item)}`
+                    body: `item=${encodeURIComponent(item)}&category=${encodeURIComponent(category)}&expiration_date=${encodeURIComponent(expirationDate)}`
                 });
-                input.value = '';
+                document.getElementById('itemInput').value = '';
+                document.getElementById('categorySelect').value = '';
+                document.getElementById('expirationDate').value = '';
                 fetchItems();
             }
         }
@@ -107,7 +135,37 @@
             fetchItems();
         }
 
+        async function editItem(oldItem) {
+            const newItem = prompt('Enter new item name:', oldItem);
+            if (newItem !== null) {
+                const newCategory = prompt('Enter new category:');
+                const newExpirationDate = prompt('Enter new expiration date:');
+
+                await fetch('/edit_item', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `old_name=${encodeURIComponent(oldItem)}&item=${encodeURIComponent(newItem)}&category=${encodeURIComponent(newCategory)}&expiration_date=${encodeURIComponent(newExpirationDate)}`
+                });
+                fetchItems();
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('input', async (event) => {
+            const query = event.target.value;
+            const response = await fetch(`/search_items?query=${encodeURIComponent(query)}`);
+            const items = await response.json();
+            const itemList = document.getElementById('itemList');
+            itemList.innerHTML = '';
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `${item.item} - ${item.category} - ${item.expiration_date} 
+                <button class="edit-btn" onclick="editItem('${item.item}')">Edit</button>
+                <button onclick="removeItem('${item.item}')">Remove</button>`;
+                itemList.appendChild(li);
+            });
+        });
+
         fetchItems();
     </script>
 </body>
-          </html>
+</html>
